@@ -4,5 +4,3 @@ streamlit
 requests
 serpapi
 python-dotenv
-feedparser
-beautifulsoup4
