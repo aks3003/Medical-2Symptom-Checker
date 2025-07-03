@@ -1,0 +1,8 @@
+pandas
+scikit-learn
+streamlit
+requests
+serpapi
+python-dotenv
+feedparser
+beautifulsoup4
