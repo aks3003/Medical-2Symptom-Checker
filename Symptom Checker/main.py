@@ -1,31 +1,48 @@
-from symptom_checker.triage_system import TriageSystem
+# main.py
 import os
 from dotenv import load_dotenv
-
-# Load environment variables (SERP API key)
-load_dotenv(dotenv_path='C:/Users/akshi/OneDrive/Documents/Symptom Checker/symptom_checker/safe.env')
-SERP_API_KEY = os.getenv("SERP_API_KEY")
+from symptom_checker.triage_system import TriageSystem
+import pprint
 
 def main():
-    triage = TriageSystem(data_path="data/", serp_api_key=SERP_API_KEY)
+    """
+    Main function to initialize and run the symptom checker.
+    """
+    # Load environment variables from .env file
+    # Ensure you have a 'safe.env' file with your SERP_API_KEY and GROQ_API_KEY
+    load_dotenv(dotenv_path='safe.env')
+    
+    serp_api_key = os.getenv("SERP_API_KEY")
+    groq_api_key = os.getenv("GROQ_API_KEY")
 
-    # Example symptoms (you can modify this or accept user input)
-    patient_symptoms = ['fever', 'cough', 'shortness of breath']
+    if not serp_api_key or not groq_api_key:
+        print("❌ API Keys are missing! Please create a 'safe.env' file with SERP_API_KEY and GROQ_API_KEY.")
+        return
 
-    result = triage.assess_patient(patient_symptoms)
+    # Initialize the Triage System (this will load data and train the model)
+    try:
+        triage_system = TriageSystem(
+            serp_api_key=serp_api_key,
+            groq_api_key=groq_api_key
+        )
+    except Exception as e:
+        print(f"❌ Failed to initialize the Triage System: {e}")
+        return
 
-    # Display result
-    print("\n📋 Triage Summary")
-    print(f"✅ Validated Symptoms: {result['validated_symptoms']}")
-    print(f"\n💥 Risk Score: {result['risk_score']}")
-    print(f"\n⚠️ Severity Level: {result['severity_level']}")
-    print(f"\n💡 Care Recommendation: {result['care_recommendation']}\n")
+    # --- Example Patient Assessment ---
+    # You can change these symptoms to test different scenarios
+    patient_symptoms = ["itching", "skin rash", "nodal skin eruptions"] # Example for Fungal infection
+    # patient_symptoms = ["continuous sneezing", "shivering", "chills"] # Example for Allergy
+    # patient_symptoms = ["acidity", "indigestion", "headache", "blurred_and_distorted_vision"] # Example for Migraine
+    
+    # Get the assessment result
+    result = triage_system.assess_patient(patient_symptoms)
 
-    print("🩺 Predicted Diseases and Details:")
-    for detail in result['disease_details']:
-        print(f"  ➡ Disease: {detail['disease']}")
-        print(f"     Description: {detail['description']}")
-        print(f"     Precautions: {detail['precautions']}\n")
+    # Pretty print the final result
+    print("\n\n--- Final Assessment Report ---")
+    pprint.pprint(result)
+    print("-----------------------------\n")
+
 
 if __name__ == "__main__":
     main()
