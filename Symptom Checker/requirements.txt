@@ -1,6 +1,6 @@
 pandas
 scikit-learn
-streamlit
-requests
-serpapi
+serpapi-google-search
+groq
 python-dotenv
+streamlit
