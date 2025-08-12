@@ -4,7 +4,7 @@
 An intelligent **medical triage and disease prediction system** powered by:
 - ✅ Machine learning (Decision Tree)
 - ✅ Rule-based reasoning
-- ✅ Retrieval-Augmented Generation (RAG) using SerpAPI
+- ✅ Retrieval-Augmented Generation (RAG) using SerpAPI and GROQ
 - ✅ Streamlit interactive web app
 
 ---
@@ -26,7 +26,7 @@ An intelligent **medical triage and disease prediction system** powered by:
 |--------------|---------------------------|
 | ML Model     | Scikit-Learn Decision Tree |
 | Web App      | Streamlit                  |
-| RAG Fetcher  | SerpAPI + Requests         |
+| RAG Fetcher  | SerpAPI + Groq             |
 | Data Handling| Pandas                     |
 | Deployment   | Streamlit, GitHub          |
 
@@ -62,7 +62,8 @@ pip install -r requirements.txt
 ### 3️⃣ Set up environment
 Create a `.env` or `safe.env` file with your **SERPAPI key**:
 ```
-SERP=your_serpapi_key_here
+SERP=your_serpapi_key
+GROQ=your_GROQ_key
 ```
 
 ### 4️⃣ Run the Streamlit app
@@ -104,7 +105,7 @@ python main.py
 ## 💡 Future Improvements
 
 - Add support for other ML models (e.g., XGBoost)
-- Use OpenAI/Gemini API for richer RAG summarization
+- Use GROQ API for richer RAG summarization
 - Dockerize for easy deployment
 
 ---
