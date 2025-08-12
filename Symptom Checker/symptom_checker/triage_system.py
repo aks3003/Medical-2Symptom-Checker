@@ -1,73 +1,83 @@
-import pandas as pd
-from symptom_checker.disease_predictor import DiseasePredictor
-from symptom_checker.rag_precaution_fetcher import RAGPrecautionFetcher
-from symptom_checker.data_loader import MedicalDataLoader
+# symptom_checker/triage_system.py
+from .data_loader import MedicalDataLoader
+from .disease_predictor import DiseasePredictor
+from .rag_precaution_fetcher import RAGPrecautionFetcher
+from .symptom_validator import SymptomValidator
+from .risk_assessment import RiskAssessor
+from .severity_assessment import SeverityAssessor
+from .care_recommendation import CareRecommender
 
 class TriageSystem:
-    def __init__(self, data_path, serp_api_key):
-        self.data_path = data_path
-        self.data_loader = MedicalDataLoader(data_path)
-        self.data_loader.load_datasets()
+    def __init__(self, data_path='data/', serp_api_key=None, groq_api_key=None):
+        # 1. Load and process all data
+        data_loader = MedicalDataLoader(data_path)
+        data_loader.load_and_process_data()
+        self.processed_data = data_loader.get_processed_data()
 
-        self.symptom_disease_map = self.data_loader.processed_data['symptom_disease_map']
-        self.all_symptoms = self.data_loader.processed_data['all_symptoms']
-        self.severity_mapping = self.data_loader.processed_data['severity_mapping']
+        # Extract data for easy access
+        self.all_symptoms = self.processed_data['all_symptoms']
+        self.severity_mapping = self.processed_data['severity_mapping']
+        self.description_mapping = self.processed_data['description_mapping']
+        self.precaution_mapping = self.processed_data['precaution_mapping']
 
-        self.rag_fetcher = RAGPrecautionFetcher(serp_api_key)
+        # 2. Initialize and train the disease predictor
+        self.predictor = DiseasePredictor()
+        self.predictor.train(self.processed_data['X_train'], self.processed_data['y_train'])
+        
+        # 3. Initialize the RAG fetcher for dynamic information
+        self.rag_fetcher = RAGPrecautionFetcher(serp_api_key, groq_api_key)
+        
+        # ## New Method for logging status ##
+        self._log_status()
+
+    def _log_status(self):
+        """Logs the status of the system after initialization."""
+        print("✅ Triage System Initialized Successfully.")
+        print(f"-> Loaded {len(self.all_symptoms)} symptoms.")
+        print("-> Disease prediction model trained.")
+
 
     def assess_patient(self, patient_symptoms):
-        print(f"\n🔍 Assessing patient with symptoms: {patient_symptoms}")
+        """
+        Runs the full triage assessment for a given list of patient symptoms.
+        """
+        print(f"\nAssessing symptoms: {patient_symptoms}")
 
-        validated_symptoms = self.validate_symptoms(patient_symptoms)
-        risk_score = self.calculate_risk_score(validated_symptoms)
-        severity_level = self.determine_severity_level(risk_score)
-        care_recommendation = self.recommend_care(severity_level)
+        # Step 1: Validate symptoms against our known list
+        validated_symptoms = SymptomValidator.validate(patient_symptoms, self.all_symptoms)
+        if not validated_symptoms:
+            return {"error": "No valid symptoms provided or recognized."}
 
-        predicted_diseases = DiseasePredictor.predict(validated_symptoms, self.symptom_disease_map)
+        # Step 2: Calculate risk score
+        risk_score = RiskAssessor.calculate(validated_symptoms, self.severity_mapping)
 
-        disease_details = []
-        for disease in predicted_diseases:
-            description = self.rag_fetcher.fetch_condition(validated_symptoms)
-            precautions_text = self.rag_fetcher.fetch_precautions(disease)
+        # Step 3: Assess severity level
+        severity_level = SeverityAssessor.classify(risk_score)
 
-            disease_details.append({
-                "disease": disease,
-                "description": description,
-                "precautions": precautions_text
-            })
+        # Step 4: Recommend care
+        care_recommendation = CareRecommender.recommend(severity_level)
+
+        # Step 5: Predict the most likely disease
+        predicted_disease = self.predictor.predict(validated_symptoms)
+        
+        # Step 6: Fetch information about the predicted disease
+        description = self.description_mapping.get(predicted_disease, "No description available.")
+        
+        try:
+            print(f"Fetching RAG precautions for: {predicted_disease}")
+            precautions = self.rag_fetcher.fetch_precautions(predicted_disease)
+        except Exception as e:
+            print(f"⚠️ RAG fetcher failed ({e}), falling back to local data.")
+            precautions = self.precaution_mapping.get(predicted_disease, ["No specific precautions found."])
 
         return {
             "validated_symptoms": validated_symptoms,
             "risk_score": risk_score,
             "severity_level": severity_level,
             "care_recommendation": care_recommendation,
-            "disease_details": disease_details
+            "predicted_disease": {
+                "name": predicted_disease.title(),
+                "description": description,
+                "precautions": precautions
+            }
         }
-
-    def validate_symptoms(self, symptoms):
-        validated = []
-        for symptom in symptoms:
-            norm_symptom = symptom.strip().lower().replace(' ', '_')
-            if norm_symptom in self.all_symptoms:
-                validated.append(norm_symptom)
-        return validated
-
-    def calculate_risk_score(self, validated_symptoms):
-        # Use dataset severity mapping instead of hardcoding
-        return sum(self.severity_mapping.get(symptom, 1) for symptom in validated_symptoms)
-
-    def determine_severity_level(self, risk_score):
-        if risk_score >= 12:
-            return "HIGH"
-        elif risk_score >= 8:
-            return "MEDIUM"
-        else:
-            return "LOW"
-
-    def recommend_care(self, severity_level):
-        if severity_level == "HIGH":
-            return "IMMEDIATE MEDICAL ATTENTION"
-        elif severity_level == "MEDIUM":
-            return "CONSULT DOCTOR"
-        else:
-            return "SELF CARE"
